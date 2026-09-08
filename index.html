@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Carte Olinp - Supabase</title>
+  <title>Carte Olinp</title>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -114,8 +114,6 @@
     const SUPABASE_URL = 'https://dxbmlowliwqokennwdye.supabase.co'; 
     const SUPABASE_ANON_KEY = 'sb_publishable_LfDsTqPInLl4rnLnITkEtA_AUZeVUtn';
     
-    // CORRECTION DU BUG : On appelle la variable "db" pour éviter 
-    // le conflit avec la bibliothèque "supabase" déjà chargée.
     // Initialisation sécurisée de Supabase.
     let db = null;
     if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -144,7 +142,6 @@
       if (!db) {
         document.getElementById('items-count').innerText = "Supabase indisponible";
         showStartupError("Le service de données n'a pas pu être chargé. Vérifiez votre connexion Internet puis rechargez la page.");
-        // La carte reste utilisable même sans Supabase.
       }
 
       // Centré par défaut sur Grenoble
@@ -218,7 +215,7 @@
       if (userCoords) {
         openModal(userCoords.lat, userCoords.lng);
       } else {
-        showToast("GPS indisponible. Cliquez directement sur la carte.");
+        showToast("GPS indisponible : cliquez directement sur la carte pour choisir l'emplacement.");
       }
     }
 
@@ -297,8 +294,12 @@
       
       try {
         if (photoUrl) {
-          const fileName = photoUrl.split('/').pop();
-          await db.storage.from('photos').remove([fileName]);
+          const marker = '/photos/';
+          const idx = photoUrl.indexOf(marker);
+          const fileName = idx >= 0 ? decodeURIComponent(photoUrl.substring(idx + marker.length).split('?')[0]) : null;
+          if (fileName) {
+            await db.storage.from('photos').remove([fileName]);
+          }
         }
 
         const { error } = await db.from('items').delete().eq('id', id);
@@ -365,6 +366,12 @@
     // --- SUPABASE : AJOUT D'UN OBJET ---
     async function submitForm(e) {
       e.preventDefault();
+
+      if (!db) {
+        showToast("Connexion à Supabase impossible. Rechargez la page.");
+        return;
+      }
+
       const btn = document.getElementById('submit-btn');
       btn.disabled = true;
       btn.innerText = "Envoi de la photo...";
@@ -376,9 +383,16 @@
           const fileExt = selectedFile.name.split('.').pop();
           const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
           
+          const blob = await (await fetch(compressedPhotoBase64)).blob();
+          const uploadFile = new File([blob], fileName, { type: 'image/jpeg' });
+
           const { data, error } = await db.storage
             .from('photos')
-            .upload(fileName, selectedFile, { cacheControl: '3600', upsert: false });
+            .upload(fileName, uploadFile, {
+              cacheControl: '3600',
+              upsert: false,
+              contentType: 'image/jpeg'
+            });
 
           if (error) throw error;
           
@@ -395,9 +409,22 @@
         const lng = parseFloat(document.getElementById('lng').value);
         const desc = document.getElementById('desc-input').value.trim();
 
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          throw new Error("Position GPS invalide.");
+        }
+        if (!desc) {
+          throw new Error("La description est obligatoire.");
+        }
+
         const { data: insertData, error: insertError } = await db
           .from('items')
-          .insert([{ lat, lng, desc, photoUrl: finalPhotoUrl, status: 'pending' }]);
+          .insert([{
+            lat,
+            lng,
+            desc,
+            photoUrl: finalPhotoUrl,
+            status: 'pending'
+          }]);
 
         if (insertError) throw insertError;
 
@@ -406,7 +433,7 @@
         fetchPins();
       } catch (err) {
         console.error(err);
-        showToast("Erreur lors de l'enregistrement.");
+        showToast("Erreur : " + (err?.message || "enregistrement impossible"));
       } finally {
         btn.disabled = false;
         btn.innerText = "Ajouter sur la carte";
