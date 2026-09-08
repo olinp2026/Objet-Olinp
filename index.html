@@ -114,8 +114,9 @@
     const SUPABASE_URL = 'https://dxbmlowliwqokennwdye.supabase.co'; 
     const SUPABASE_ANON_KEY = 'sb_publishable_LfDsTqPInLl4rnLnITkEtA_AUZeVUtn';
     
-    // Initialisation du client
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // CORRECTION DU BUG : On appelle la variable "db" pour éviter 
+    // le conflit avec la bibliothèque "supabase" déjà chargée.
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let map, markersLayer, userMarker = null, userAccuracyCircle = null;
     let userCoords = null; 
@@ -208,7 +209,7 @@
     // --- SUPABASE : RÉCUPÉRATION DES OBJETS ---
     async function fetchPins() {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from('items')
           .select('*')
           .order('created_at', { ascending: true });
@@ -277,10 +278,10 @@
       try {
         if (photoUrl) {
           const fileName = photoUrl.split('/').pop();
-          await supabase.storage.from('photos').remove([fileName]);
+          await db.storage.from('photos').remove([fileName]);
         }
 
-        const { error } = await supabase.from('items').delete().eq('id', id);
+        const { error } = await db.from('items').delete().eq('id', id);
         if (error) throw error;
 
         allItems = allItems.filter(i => i.id !== id);
@@ -298,7 +299,7 @@
       showToast("Mise à jour...");
       
       try {
-        const { error } = await supabase
+        const { error } = await db
           .from('items')
           .update({ status: newStatus })
           .eq('id', id);
@@ -355,13 +356,13 @@
           const fileExt = selectedFile.name.split('.').pop();
           const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
           
-          const { data, error } = await supabase.storage
+          const { data, error } = await db.storage
             .from('photos')
             .upload(fileName, selectedFile, { cacheControl: '3600', upsert: false });
 
           if (error) throw error;
           
-          const { data: publicUrlData } = supabase.storage
+          const { data: publicUrlData } = db.storage
             .from('photos')
             .getPublicUrl(fileName);
             
@@ -374,7 +375,7 @@
         const lng = parseFloat(document.getElementById('lng').value);
         const desc = document.getElementById('desc-input').value.trim();
 
-        const { data: insertData, error: insertError } = await supabase
+        const { data: insertData, error: insertError } = await db
           .from('items')
           .insert([{ lat, lng, desc, photoUrl: finalPhotoUrl, status: 'pending' }]);
 
