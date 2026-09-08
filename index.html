@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Carte Participative HD - Supabase</title>
+  <title>Carte Olinp - Supabase</title>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -116,7 +116,11 @@
     
     // CORRECTION DU BUG : On appelle la variable "db" pour éviter 
     // le conflit avec la bibliothèque "supabase" déjà chargée.
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Initialisation sécurisée de Supabase.
+    let db = null;
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
 
     let map, markersLayer, userMarker = null, userAccuracyCircle = null;
     let userCoords = null; 
@@ -131,6 +135,18 @@
 
     // --- INITIALISATION DE LA CARTE ---
     function initMap() {
+      if (typeof L === 'undefined') {
+        document.getElementById('items-count').innerText = "Erreur : carte indisponible";
+        showStartupError("La bibliothèque de carte n'a pas pu être chargée. Vérifiez votre connexion Internet puis rechargez la page.");
+        return;
+      }
+
+      if (!db) {
+        document.getElementById('items-count').innerText = "Supabase indisponible";
+        showStartupError("Le service de données n'a pas pu être chargé. Vérifiez votre connexion Internet puis rechargez la page.");
+        // La carte reste utilisable même sans Supabase.
+      }
+
       // Centré par défaut sur Grenoble
       map = L.map('map', { zoomControl: false, maxZoom: 19 }).setView([45.201, 5.714], 14);
 
@@ -208,6 +224,10 @@
 
     // --- SUPABASE : RÉCUPÉRATION DES OBJETS ---
     async function fetchPins() {
+      if (!db) {
+        document.getElementById('items-count').innerText = "Carte hors ligne";
+        return;
+      }
       try {
         const { data, error } = await db
           .from('items')
@@ -462,6 +482,19 @@
       compressedPhotoBase64 = null;
     }
 
+    function showStartupError(message) {
+      let box = document.getElementById('startup-error');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'startup-error';
+        box.className = 'fixed inset-x-3 top-20 z-[3000] mx-auto max-w-lg rounded-2xl bg-white p-4 shadow-2xl border border-rose-200 text-sm text-slate-700';
+        document.body.appendChild(box);
+      }
+      box.innerHTML = '<div class="font-bold text-rose-600 mb-1">Impossible de charger le site</div>' +
+                      '<div>' + escapeHtml(message) + '</div>' +
+                      '<button onclick="location.reload()" class="mt-3 bg-blue-600 text-white font-bold px-4 py-2 rounded-xl">Recharger</button>';
+    }
+
     function showToast(txt) {
       const t = document.getElementById('toast');
       t.innerText = txt;
@@ -469,7 +502,14 @@
       setTimeout(() => t.classList.add('hidden'), 3500);
     }
 
-    window.addEventListener('DOMContentLoaded', initMap);
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        initMap();
+      } catch (err) {
+        console.error("Erreur au démarrage :", err);
+        showStartupError("Une erreur JavaScript empêche la carte de démarrer. Ouvrez la console du navigateur (F12) pour voir le détail.");
+      }
+    });
   </script>
 </body>
 </html>
