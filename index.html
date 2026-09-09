@@ -2,541 +2,1616 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Carte Olinp</title>
-
-  <!-- Tailwind CSS -->
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Leaflet CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Client Supabase -->
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
-    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    #map { height: 100vh; width: 100vw; z-index: 1; background: #e2e8f0; }
-    .custom-pin { background: none; border: none; }
-    /* Fond de carte minimaliste clair */
-    .leaflet-tile { filter: grayscale(100%) opacity(0.8) contrast(120%); }
-    .leaflet-control-attribution { font-size: 9px; padding: 1px 5px; background: rgba(255,255,255,0.55); opacity: 0.75; }
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Display",
+        "SF Pro Text",
+        "Segoe UI",
+        Roboto,
+        sans-serif;
+      background: #f1f5f9;
+    }
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #map {
+      width: 100vw;
+      height: 100dvh;
+      background: #e2e8f0;
+      z-index: 1;
+    }
+    /* =========================
+       CARTE
+    ========================= */
+    .leaflet-tile {
+      filter: grayscale(85%) saturate(55%) brightness(1.04) contrast(1.05);
+    }
+    .leaflet-control-attribution {
+      font-size: 8px;
+      padding: 2px 5px;
+      background: rgba(255,255,255,.55) !important;
+      backdrop-filter: blur(8px);
+      border-radius: 8px 0 0 0;
+      opacity: .7;
+    }
+    .leaflet-popup {
+      margin-bottom: 12px;
+    }
+    .leaflet-popup-content-wrapper {
+      border-radius: 20px !important;
+      padding: 0 !important;
+      overflow: hidden;
+      box-shadow:
+        0 15px 45px rgba(15, 23, 42, .20),
+        0 4px 12px rgba(15, 23, 42, .08);
+    }
+    .leaflet-popup-content {
+      margin: 0 !important;
+      min-width: 245px;
+      max-width: 290px;
+    }
+    .leaflet-popup-tip {
+      box-shadow: none !important;
+    }
+    .leaflet-popup-close-button {
+      top: 8px !important;
+      right: 10px !important;
+      width: 30px !important;
+      height: 30px !important;
+      border-radius: 50%;
+      background: rgba(255,255,255,.92) !important;
+      color: #475569 !important;
+      font-size: 18px !important;
+      line-height: 28px !important;
+      z-index: 10;
+      box-shadow: 0 3px 10px rgba(15,23,42,.12);
+    }
+    /* =========================
+       PINS
+    ========================= */
+    .custom-pin {
+      background: transparent;
+      border: none;
+    }
+    .map-pin {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 3px solid white;
+      box-shadow:
+        0 5px 14px rgba(15,23,42,.25),
+        0 2px 5px rgba(15,23,42,.15);
+      font-size: 17px;
+      transition: transform .2s ease;
+    }
+    .map-pin.pending {
+      background: #2563eb;
+    }
+    .map-pin.collected {
+      background: #10b981;
+    }
+    .map-pin:hover {
+      transform: scale(1.1);
+    }
+    .user-location-dot {
+      width: 18px;
+      height: 18px;
+      background: #2563eb;
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 6px rgba(37,99,235,.18),
+        0 3px 10px rgba(15,23,42,.25);
+    }
+    /* =========================
+       GLASS UI
+    ========================= */
+    .glass {
+      background: rgba(255,255,255,.88);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid rgba(255,255,255,.75);
+      box-shadow:
+        0 10px 30px rgba(15,23,42,.10),
+        0 2px 8px rgba(15,23,42,.06);
+    }
+    .floating-button {
+      transition:
+        transform .15s ease,
+        background .15s ease,
+        box-shadow .15s ease;
+    }
+    .floating-button:active {
+      transform: scale(.92);
+    }
+    /* =========================
+       MODAL
+    ========================= */
+    #signal-modal {
+      transition: opacity .25s ease;
+    }
+    #signal-modal.hidden {
+      display: none;
+    }
+    .modal-card {
+      animation: modalUp .3s cubic-bezier(.2,.8,.2,1);
+    }
+    @keyframes modalUp {
+      from {
+        transform: translateY(35px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    /* =========================
+       TOAST
+    ========================= */
+    #toast {
+      animation: toastIn .3s cubic-bezier(.2,.8,.2,1);
+    }
+    @keyframes toastIn {
+      from {
+        transform: translate(-50%, 15px);
+        opacity: 0;
+      }
+      to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+      }
+    }
+    /* =========================
+       TIMELINE
+    ========================= */
+    #timeline-panel {
+      animation: timelineIn .25s ease;
+    }
+    @keyframes timelineIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    input[type="range"] {
+      height: 5px;
+      border-radius: 999px;
+    }
+    /* =========================
+       SCROLLBAR
+    ========================= */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 999px;
+    }
+    /* =========================
+       MOBILE SAFE AREAS
+    ========================= */
+    .safe-top {
+      padding-top: max(12px, env(safe-area-inset-top));
+    }
+    .safe-bottom {
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
   </style>
 </head>
-<body class="relative bg-slate-900 select-none">
-
-  <!-- Carte HD -->
+<body>
+  <!-- =========================
+       CARTE
+  ========================= -->
   <div id="map"></div>
-
-  <!-- Barre d'outils supérieure -->
-  <div class="absolute top-3 left-3 right-3 z-[1000] flex flex-wrap gap-2 justify-between items-center pointer-events-none">
-    <div class="pointer-events-auto bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-2xl shadow-lg border border-slate-200/60 text-xs font-semibold text-slate-800 flex items-center gap-2.5">
-      <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
-      <span id="items-count">Connexion...</span>
+  <!-- =========================
+       TOP BAR
+  ========================= -->
+  <div class="absolute top-0 left-0 right-0 z-[1000] safe-top px-3 pt-3 pointer-events-none">
+<div class="flex items-center justify-between gap-2">
+  <!-- Compteur -->
+  <div class="glass pointer-events-auto rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5">
+    <div class="relative flex items-center justify-center">
+      <span class="absolute w-3 h-3 rounded-full bg-blue-500 opacity-30 animate-ping"></span>
+      <span class="relative w-2.5 h-2.5 rounded-full bg-blue-600"></span>
     </div>
-
-    <div class="pointer-events-auto flex items-center gap-2">
-      <button onclick="toggleTimeline()" class="bg-white/95 backdrop-blur-md hover:bg-slate-100 text-slate-800 px-3 py-2 rounded-2xl shadow-lg border border-slate-200/60 text-xs font-bold flex items-center gap-1.5 transition active:scale-95" title="Historique temporel">
-        ⏳ <span class="hidden sm:inline">Évolution</span>
-      </button>
-      <button onclick="fetchPins()" class="bg-white/95 backdrop-blur-md hover:bg-slate-100 text-slate-800 p-2 rounded-2xl shadow-lg border border-slate-200/60 text-xs font-bold transition active:scale-95" title="Rafraîchir les données">
-        🔄
-      </button>
-    </div>
-  </div>
-
-  <!-- Lecteur d'Évolution Temporelle -->
-  <div id="timeline-panel" class="hidden absolute top-16 left-3 right-3 z-[1000] bg-white/95 backdrop-blur-md p-3.5 rounded-2xl shadow-xl border border-slate-200/80 max-w-lg mx-auto transition-all">
-    <div class="flex justify-between items-center mb-2">
-      <div class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-        <span>📈 Évolution des dépôts</span>
-        <span id="timeline-date-display" class="font-normal text-slate-500 text-[11px]">(Tous)</span>
+    <div>
+      <div class="text-[9px] uppercase tracking-wider font-bold text-slate-400 leading-none mb-0.5">
+        Carte
       </div>
-      <button onclick="togglePlayTimeline()" id="timeline-play-btn" class="text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg transition">
-        ▶ Lecture
-      </button>
+      <div id="items-count" class="text-xs font-bold text-slate-800 leading-none">
+        Chargement…
+      </div>
     </div>
-    <input type="range" id="timeline-slider" min="0" max="100" value="100" class="w-full accent-blue-600 cursor-pointer" oninput="onTimelineChange(this.value)">
   </div>
-
-  <!-- Commandes d'action en bas -->
-  <div class="absolute bottom-6 left-3 right-3 z-[1000] flex justify-between items-end pointer-events-none">
-    <button onclick="locateUser(true)" class="pointer-events-auto w-12 h-12 bg-white text-slate-800 shadow-xl rounded-2xl flex items-center justify-center text-xl hover:bg-slate-50 border border-slate-200/60 active:scale-95 transition" title="Recentrer sur ma position">
-      🎯
+  <!-- Actions -->
+  <div class="flex items-center gap-2 pointer-events-auto">
+    <button
+      onclick="toggleTimeline()"
+      class="floating-button glass w-11 h-11 rounded-2xl flex items-center justify-center text-lg"
+      title="Évolution"
+    >
+      📈
     </button>
-    <button onclick="openFormAtUserLocation()" class="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-5 rounded-2xl shadow-xl shadow-blue-600/30 flex items-center gap-2 active:scale-95 transition">
-      <span class="text-lg">📷</span>
-      <span class="text-sm">Pinner un objet</span>
+    <button
+      onclick="fetchPins()"
+      class="floating-button glass w-11 h-11 rounded-2xl flex items-center justify-center text-lg"
+      title="Actualiser"
+    >
+      🔄
     </button>
   </div>
-
-  <!-- Toast de notification -->
-  <div id="toast" class="hidden absolute bottom-24 left-1/2 -translate-x-1/2 z-[1001] bg-slate-900/95 text-white text-xs px-4 py-2.5 rounded-full shadow-2xl transition whitespace-nowrap"></div>
-
-  <!-- MODAL : Signalement -->
-  <div id="signal-modal" class="hidden fixed inset-0 z-[2000] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl max-h-[92vh] overflow-y-auto">
-      <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-3">
-        <h3 class="font-bold text-slate-800 text-base">Signaler un objet</h3>
-        <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200">✕</button>
+</div>
+  </div>
+  <!-- =========================
+       TIMELINE
+  ========================= -->
+  <div
+    id="timeline-panel"
+    class="hidden absolute top-[76px] left-3 right-3 z-[1000] max-w-md mx-auto"
+  >
+<div class="glass rounded-3xl p-4">
+  <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+        📈
       </div>
-
-      <form id="signal-form" onsubmit="submitForm(event)" class="space-y-3.5">
-        <input type="hidden" id="lat">
-        <input type="hidden" id="lng">
-        <p class="text-[11px] text-slate-400 font-mono" id="coords-text">Position : --</p>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Photo *</label>
-          <input type="file" id="photo-input" accept="image/*" required class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-          <div id="preview-container" class="mt-2 hidden">
-            <img id="image-preview" src="" alt="Aperçu" class="h-32 w-full object-cover rounded-xl border border-slate-200">
+      <div>
+        <div class="text-xs font-bold text-slate-800">
+          Évolution des dépôts
+        </div>
+        <div
+          id="timeline-date-display"
+          class="text-[10px] text-slate-400 mt-0.5"
+        >
+          Tous les objets
+        </div>
+      </div>
+    </div>
+    <button
+      onclick="togglePlayTimeline()"
+      id="timeline-play-btn"
+      class="bg-blue-600 text-white px-3 py-2 rounded-xl text-[11px] font-bold shadow-md shadow-blue-500/20 active:scale-95 transition"
+    >
+      ▶ Lecture
+    </button>
+  </div>
+  <div class="relative">
+    <input
+      type="range"
+      id="timeline-slider"
+      min="0"
+      max="100"
+      value="100"
+      class="w-full accent-blue-600 cursor-pointer"
+      oninput="onTimelineChange(this.value)"
+    >
+    <div class="flex justify-between mt-2 text-[9px] text-slate-400 font-medium">
+      <span>Début</span>
+      <span>Aujourd'hui</span>
+    </div>
+  </div>
+</div>
+  </div>
+  <!-- =========================
+       BOTTOM ACTIONS
+  ========================= -->
+  <div
+    class="absolute bottom-0 left-0 right-0 z-[1000] safe-bottom px-3 pb-5 pointer-events-none"
+  >
+<div class="flex items-end justify-between">
+  <!-- Localisation -->
+  <button
+    onclick="locateUser(true)"
+    class="floating-button pointer-events-auto glass w-13 h-13 w-[52px] h-[52px] rounded-2xl flex items-center justify-center text-xl"
+    title="Ma position"
+  >
+    <span>🎯</span>
+  </button>
+  <!-- Ajouter -->
+  <button
+    onclick="openFormAtUserLocation()"
+    class="pointer-events-auto bg-blue-600 hover:bg-blue-700 text-white rounded-2xl px-5 py-3.5 flex items-center gap-2.5 shadow-xl shadow-blue-600/30 active:scale-[.97] transition"
+  >
+    <div class="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center">
+      📷
+    </div>
+    <div class="text-left">
+      <div class="text-[9px] uppercase tracking-wider text-blue-100 font-semibold">
+        Nouveau
+      </div>
+      <div class="text-sm font-bold leading-none">
+        Pinner un objet
+      </div>
+    </div>
+  </button>
+</div>
+  </div>
+  <!-- =========================
+       TOAST
+  ========================= -->
+  <div
+    id="toast"
+    class="hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-[3000] bg-slate-900/95 backdrop-blur-md text-white text-xs font-semibold px-4 py-3 rounded-full shadow-2xl whitespace-nowrap"
+  ></div>
+  <!-- =========================
+       MODAL
+  ========================= -->
+  <div
+    id="signal-modal"
+    class="hidden fixed inset-0 z-[2000] bg-slate-950/45 backdrop-blur-sm flex items-end sm:items-center justify-center"
+  >
+<div
+  class="modal-card bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-[30px] p-5 shadow-2xl max-h-[94dvh] overflow-y-auto"
+>
+  <!-- Handle mobile -->
+  <div class="sm:hidden flex justify-center mb-4">
+    <div class="w-10 h-1 rounded-full bg-slate-200"></div>
+  </div>
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-5">
+    <div>
+      <div class="flex items-center gap-2 mb-1">
+        <div class="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+          📷
+        </div>
+        <h3 class="font-bold text-slate-900 text-base">
+          Signaler un objet
+        </h3>
+      </div>
+      <p class="text-[11px] text-slate-400">
+        Ajoutez une trouvaille à la carte
+      </p>
+    </div>
+    <button
+      type="button"
+      onclick="closeModal()"
+      class="w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 active:scale-90 transition"
+    >
+      ✕
+    </button>
+  </div>
+  <form
+    id="signal-form"
+    onsubmit="submitForm(event)"
+    class="space-y-4"
+  >
+    <input type="hidden" id="lat">
+    <input type="hidden" id="lng">
+    <!-- Position -->
+    <div class="bg-slate-50 rounded-2xl px-3 py-2.5 flex items-center gap-3">
+      <div class="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-sm">
+        📍
+      </div>
+      <div>
+        <div class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">
+          Position
+        </div>
+        <div
+          id="coords-text"
+          class="text-[11px] text-slate-600 font-mono"
+        >
+          --
+        </div>
+      </div>
+    </div>
+    <!-- Photo -->
+    <div>
+      <label class="block text-xs font-bold text-slate-700 mb-2">
+        Photo <span class="text-blue-600">*</span>
+      </label>
+      <label
+        for="photo-input"
+        class="relative block cursor-pointer rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 transition p-5 text-center"
+      >
+        <div class="text-3xl mb-2">
+          📸
+        </div>
+        <div class="text-xs font-bold text-slate-700">
+          Ajouter une photo
+        </div>
+        <div class="text-[10px] text-slate-400 mt-1">
+          Touchez pour sélectionner une image
+        </div>
+        <input
+          type="file"
+          id="photo-input"
+          accept="image/*"
+          required
+          class="hidden"
+        >
+      </label>
+      <div id="preview-container" class="mt-3 hidden">
+        <div class="relative">
+          <img
+            id="image-preview"
+            src=""
+            alt="Aperçu"
+            class="h-40 w-full object-cover rounded-2xl border border-slate-200"
+          >
+          <div class="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-lg">
+            Aperçu
           </div>
         </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Description / Précision</label>
-          <textarea id="desc-input" rows="2" maxlength="280" placeholder="Ex: Clés avec porte-clé rouge..." required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
-        </div>
-
-        <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-600/30 text-sm transition disabled:opacity-50">
-          Ajouter sur la carte
-        </button>
-      </form>
+      </div>
     </div>
+    <!-- Description -->
+    <div>
+      <label class="block text-xs font-bold text-slate-700 mb-2">
+        Description <span class="text-blue-600">*</span>
+      </label>
+      <textarea
+        id="desc-input"
+        rows="3"
+        maxlength="280"
+        placeholder="Ex. : Clés avec porte-clé rouge..."
+        required
+        class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:bg-white transition resize-none"
+      ></textarea>
+      <div class="text-right text-[9px] text-slate-400 mt-1">
+        280 caractères maximum
+      </div>
+    </div>
+    <!-- Submit -->
+    <button
+      type="submit"
+      id="submit-btn"
+      class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-600/25 text-sm transition active:scale-[.98] disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      Ajouter sur la carte
+    </button>
+  </form>
+</div>
   </div>
-
   <script>
-    // ==========================================
-    // CONFIGURATION SUPABASE
-    // ==========================================
-    const SUPABASE_URL = 'https://dxbmlowliwqokennwdye.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'sb_publishable_LfDsTqPInLl4rnLnITkEtA_AUZeVUtn';
-    
-    // Initialisation sécurisée de Supabase.
+    /* ==========================================
+       CONFIGURATION SUPABASE
+    ========================================== */
+    const SUPABASE_URL =
+      'https://dxbmlowliwqokennwdye.supabase.co';
+    const SUPABASE_ANON_KEY =
+      'sb_publishable_LfDsTqPInLl4rnLnITkEtA_AUZeVUtn';
     let db = null;
-    if (window.supabase && typeof window.supabase.createClient === 'function') {
-      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    if (
+      window.supabase &&
+      typeof window.supabase.createClient === 'function'
+    ) {
+      db = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
+      );
     }
-
-    let map, markersLayer, userMarker = null, userAccuracyCircle = null;
-    let userCoords = null; 
-    let selectedFile = null; 
-    let compressedPhotoBase64 = null; 
-    let allItems = [], playInterval = null;
-
+    let map;
+    let markersLayer;
+    let userMarker = null;
+    let userAccuracyCircle = null;
+    let userCoords = null;
+    let selectedFile = null;
+    let compressedPhotoBase64 = null;
+    let allItems = [];
+    let playInterval = null;
+    /* ==========================================
+       XSS
+    ========================================== */
     function escapeHtml(str) {
       if (!str) return "";
-      return String(str).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
-
-    // --- INITIALISATION DE LA CARTE ---
+    /* ==========================================
+       INITIALISATION
+    ========================================== */
     function initMap() {
       if (typeof L === 'undefined') {
-        document.getElementById('items-count').innerText = "Erreur : carte indisponible";
-        showStartupError("La bibliothèque de carte n'a pas pu être chargée. Vérifiez votre connexion Internet puis rechargez la page.");
+        document.getElementById('items-count').innerText =
+          "Carte indisponible";
+        showStartupError(
+          "La bibliothèque de carte n'a pas pu être chargée."
+        );
         return;
       }
-
       if (!db) {
-        document.getElementById('items-count').innerText = "Supabase indisponible";
-        showStartupError("Le service de données n'a pas pu être chargé. Vérifiez votre connexion Internet puis rechargez la page.");
+        document.getElementById('items-count').innerText =
+          "Hors connexion";
+        showStartupError(
+          "Le service de données n'a pas pu être chargé."
+        );
       }
-
-      // Centré par défaut sur Grenoble
-      map = L.map('map', { zoomControl: false, maxZoom: 19 }).setView([45.201, 5.714], 14);
-
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
-        maxZoom: 19
-      }).addTo(map);
-
+      map = L.map('map', {
+        zoomControl: false,
+        maxZoom: 19,
+        tap: true
+      }).setView(
+        [45.201, 5.714],
+        14
+      );
+      L.tileLayer(
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          attribution: '© OpenStreetMap',
+          maxZoom: 19
+        }
+      ).addTo(map);
       map.attributionControl.setPrefix(false);
-      markersLayer = L.layerGroup().addTo(map);
-
+      markersLayer =
+        L.layerGroup().addTo(map);
       map.on('click', (e) => {
-        userCoords = { lat: e.latlng.lat, lng: e.latlng.lng }; 
-        openModal(e.latlng.lat, e.latlng.lng);
+        userCoords = {
+          lat: e.latlng.lat,
+          lng: e.latlng.lng
+        };
+        openModal(
+          e.latlng.lat,
+          e.latlng.lng
+        );
       });
-
-      setTimeout(() => map.invalidateSize(), 300);
-      window.addEventListener('resize', () => map.invalidateSize());
-
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 300);
+      window.addEventListener(
+        'resize',
+        () => map.invalidateSize()
+      );
       locateUser(false);
       fetchPins();
     }
-
-    // --- GÉOLOCALISATION ---
+    /* ==========================================
+       GPS
+    ========================================== */
     function locateUser(center = true) {
       if (!navigator.geolocation) {
-        showToast("GPS non supporté. Cliquez sur la carte.");
+        showToast(
+          "GPS non disponible. Touchez la carte."
+        );
         return;
       }
-      showToast(center ? "Recherche de position..." : "Synchronisation GPS...");
-      
+      showToast(
+        center
+          ? "Recherche de votre position…"
+          : "Synchronisation GPS…"
+      );
       navigator.geolocation.getCurrentPosition(
-        (pos) => handlePositionSuccess(pos, center),
-        () => showToast("GPS introuvable. Cliquez sur la carte pour pinner."),
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 10000 }
+        (pos) => {
+          handlePositionSuccess(
+            pos,
+            center
+          );
+        },
+        (err) => {
+          console.warn(
+            "Erreur GPS:",
+            err
+          );
+          showToast(
+            "Position GPS introuvable."
+          );
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
       );
     }
-
-    function handlePositionSuccess(pos, center) {
-      userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      const accuracy = pos.coords.accuracy;
-
+    function handlePositionSuccess(
+      pos,
+      center
+    ) {
+      userCoords = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude
+      };
+      const accuracy =
+        pos.coords.accuracy;
       if (!userAccuracyCircle) {
-        userAccuracyCircle = L.circle([userCoords.lat, userCoords.lng], {
-          radius: accuracy, color: '#3b82f6', weight: 1, fillColor: '#60a5fa', fillOpacity: 0.15
-        }).addTo(map);
+        userAccuracyCircle =
+          L.circle(
+            [
+              userCoords.lat,
+              userCoords.lng
+            ],
+            {
+              radius: accuracy,
+              color: '#3b82f6',
+              weight: 1,
+              fillColor: '#60a5fa',
+              fillOpacity: 0.12
+            }
+          ).addTo(map);
       } else {
-        userAccuracyCircle.setLatLng([userCoords.lat, userCoords.lng]).setRadius(accuracy);
+        userAccuracyCircle
+          .setLatLng([
+            userCoords.lat,
+            userCoords.lng
+          ])
+          .setRadius(accuracy);
       }
-
-      if (!userMarker) {
-        const userIcon = L.divIcon({
+      const userIcon =
+        L.divIcon({
           className: 'custom-pin',
-          html: `<div class="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg ring-4 ring-blue-500/30"></div>`,
-          iconSize: [16, 16], iconAnchor: [8, 8]
+          html: `
+            <div class="user-location-dot"></div>
+          `,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
         });
-        userMarker = L.marker([userCoords.lat, userCoords.lng], { icon: userIcon }).addTo(map);
+      if (!userMarker) {
+        userMarker =
+          L.marker(
+            [
+              userCoords.lat,
+              userCoords.lng
+            ],
+            {
+              icon: userIcon,
+              zIndexOffset: 1000
+            }
+          ).addTo(map);
       } else {
-        userMarker.setLatLng([userCoords.lat, userCoords.lng]);
+        userMarker.setLatLng([
+          userCoords.lat,
+          userCoords.lng
+        ]);
       }
-
       if (center) {
-        map.setView([userCoords.lat, userCoords.lng], 18);
-        showToast("Position trouvée !");
+        map.setView(
+          [
+            userCoords.lat,
+            userCoords.lng
+          ],
+          18,
+          {
+            animate: true
+          }
+        );
+        showToast(
+          "Position trouvée ✓"
+        );
       }
     }
-
     function openFormAtUserLocation() {
       if (userCoords) {
-        openModal(userCoords.lat, userCoords.lng);
+        openModal(
+          userCoords.lat,
+          userCoords.lng
+        );
       } else {
-        showToast("GPS indisponible : cliquez directement sur la carte pour choisir l'emplacement.");
+        showToast(
+          "GPS indisponible : choisissez un emplacement sur la carte."
+        );
       }
     }
-
-    // --- SUPABASE : RÉCUPÉRATION DES OBJETS ---
+    /* ==========================================
+       FETCH
+    ========================================== */
     async function fetchPins() {
       if (!db) {
-        document.getElementById('items-count').innerText = "Carte hors ligne";
+        document.getElementById(
+          'items-count'
+        ).innerText =
+          "Carte hors ligne";
         return;
       }
+      const countElement =
+        document.getElementById(
+          'items-count'
+        );
+      countElement.innerText =
+        "Actualisation…";
       try {
-        const { data, error } = await db
+        const {
+          data,
+          error
+        } = await db
           .from('items')
           .select('*')
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        
-        allItems = data;
-        renderPins(allItems);
-        document.getElementById('items-count').innerText = `${allItems.length} trouvaille(s)`;
+          .order(
+            'created_at',
+            {
+              ascending: true
+            }
+          );
+        if (error)
+          throw error;
+        allItems =
+          data || [];
+        renderPins(
+          allItems
+        );
+        countElement.innerText =
+          `${allItems.length} objet${allItems.length > 1 ? 's' : ''}`;
       } catch (err) {
-        console.error(err);
-        document.getElementById('items-count').innerText = "Erreur réseau";
+        console.error(
+          "Erreur fetchPins:",
+          err
+        );
+        countElement.innerText =
+          "Erreur réseau";
+        showToast(
+          "Impossible de charger les objets."
+        );
       }
     }
-
-    function renderPins(itemsToDisplay) {
+    /* ==========================================
+       RENDER PINS
+    ========================================== */
+    function renderPins(
+      itemsToDisplay
+    ) {
       markersLayer.clearLayers();
-      itemsToDisplay.forEach(item => {
-        const isCollected = item.status === "collected";
-        const iconColor = isCollected ? "bg-emerald-500" : "bg-blue-600";
-        const emoji = isCollected ? "✓" : "📦";
-
-        const icon = L.divIcon({
-          className: 'custom-pin',
-          html: `<div class="w-8 h-8 ${iconColor} text-white rounded-full border-2 border-white shadow-md flex items-center justify-center text-xs font-bold -translate-x-1/2 -translate-y-1/2">${emoji}</div>`,
-          iconSize: [32, 32], iconAnchor: [16, 16]
-        });
-
-        const marker = L.marker([item.lat, item.lng], { icon });
-        const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-        const safeDesc = escapeHtml(item.desc);
-
-        let popupHtml = `
-          <div class="p-1 min-w-[210px] text-slate-800">
-            ${item.photoUrl ? `<img src="${escapeHtml(item.photoUrl)}" class="w-full h-32 object-cover rounded-xl mb-2 shadow-sm" loading="lazy" />` : ''}
-            <div class="flex items-center justify-between gap-1 mb-1">
-              <span class="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ${isCollected ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}">
-                ${isCollected ? 'Récupéré' : 'Disponible'}
-              </span>
-              <span class="text-[10px] text-slate-400">${dateStr}</span>
-            </div>
-            <p class="text-xs font-medium text-slate-700 mb-2">${safeDesc}</p>
-            
-            <div class="border-t border-slate-100 pt-2 grid grid-cols-2 gap-1.5">
-              <button onclick="toggleItemStatus('${item.id}', '${item.status}')" class="py-1 px-2 rounded-lg text-[10px] font-bold transition-colors ${isCollected ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}">
-                ${isCollected ? 'Remettre en jeu' : 'Marquer pris'}
-              </button>
-              <button onclick="deleteItem('${item.id}', '${item.photoUrl}')" class="py-1 px-2 rounded-lg text-[10px] font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors">
-                Supprimer
-              </button>
-            </div>
-          </div>
-        `;
-
-        marker.bindPopup(popupHtml);
-        markersLayer.addLayer(marker);
-      });
-    }
-
-    // --- SUPABASE : GESTION DES OBJETS ---
-    async function deleteItem(id, photoUrl) {
-      if (!confirm("Confirmer la suppression définitive ?")) return;
-      map.closePopup(); 
-      showToast("Suppression en cours...");
-      
-      try {
-        if (photoUrl) {
-          const marker = '/photos/';
-          const idx = photoUrl.indexOf(marker);
-          const fileName = idx >= 0 ? decodeURIComponent(photoUrl.substring(idx + marker.length).split('?')[0]) : null;
-          if (fileName) {
-            await db.storage.from('photos').remove([fileName]);
+      itemsToDisplay.forEach(
+        item => {
+          if (
+            item.lat == null ||
+            item.lng == null
+          ) {
+            return;
           }
+          const isCollected =
+            item.status === "collected";
+          const icon =
+            L.divIcon({
+              className:
+                'custom-pin',
+              html: `
+                <div class="map-pin ${isCollected ? 'collected' : 'pending'}">
+                  ${isCollected ? '✓' : '📦'}
+                </div>
+              `,
+              iconSize: [
+                42,
+                42
+              ],
+              iconAnchor: [
+                21,
+                21
+              ],
+              popupAnchor: [
+                0,
+                -20
+              ]
+            });
+          const marker =
+            L.marker(
+              [
+                item.lat,
+                item.lng
+              ],
+              {
+                icon
+              }
+            );
+          const dateStr =
+            item.created_at
+              ? new Date(
+                  item.created_at
+                ).toLocaleDateString(
+                  'fr-FR',
+                  {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }
+                )
+              : 'Date inconnue';
+          const safeDesc =
+            escapeHtml(
+              item.desc
+            );
+          const popupHtml = `
+            <div class="text-slate-800 overflow-hidden">
+              ${
+                item.photoUrl
+                  ? `
+                    <div class="relative">
+                      <img
+                        src="${escapeHtml(item.photoUrl)}"
+                        class="w-full h-36 object-cover"
+                        loading="lazy"
+                      >
+                      <div class="absolute bottom-2 left-2 bg-black/55 backdrop-blur-md text-white text-[9px] font-bold px-2 py-1 rounded-lg">
+                        ${isCollected ? 'Récupéré' : 'Trouvaille'}
+                      </div>
+                    </div>
+                  `
+                  : ''
+              }
+              <div class="p-3.5">
+                <div class="flex items-center justify-between mb-2">
+                  <span
+                    class="
+                      text-[9px]
+                      uppercase
+                      tracking-wider
+                      font-bold
+                      px-2
+                      py-1
+                      rounded-lg
+                      ${isCollected
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-blue-50 text-blue-700'}
+                    "
+                  >
+                    ${isCollected
+                      ? '✓ Récupéré'
+                      : '● Disponible'}
+                  </span>
+                  <span class="text-[9px] text-slate-400">
+                    ${dateStr}
+                  </span>
+                </div>
+                <p class="text-xs leading-relaxed font-medium text-slate-700 mb-3">
+                  ${safeDesc}
+                </p>
+                <div class="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    onclick="toggleItemStatus('${item.id}', '${item.status}')"
+                    class="
+                      py-2
+                      px-2
+                      rounded-xl
+                      text-[10px]
+                      font-bold
+                      transition
+                      active:scale-95
+                      ${isCollected
+                        ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}
+                    "
+                  >
+                    ${isCollected
+                      ? '↩ Remettre'
+                      : '✓ Marquer pris'}
+                  </button>
+                  <button
+                    onclick="deleteItem('${item.id}', '${item.photoUrl || ''}')"
+                    class="py-2 px-2 rounded-xl text-[10px] font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 transition active:scale-95"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          marker.bindPopup(
+            popupHtml,
+            {
+              maxWidth: 290,
+              closeButton: true,
+              autoPanPadding: [
+                20,
+                100
+              ]
+            }
+          );
+          markersLayer.addLayer(
+            marker
+          );
         }
-
-        const { error } = await db.from('items').delete().eq('id', id);
-        if (error) throw error;
-
-        allItems = allItems.filter(i => i.id !== id);
-        renderPins(allItems); 
-        showToast("Objet supprimé.");
-      } catch (e) { 
-        console.error(e);
-        showToast("Erreur lors de la suppression."); 
-      }
+      );
     }
-
-    async function toggleItemStatus(id, currentStatus) {
-      const newStatus = currentStatus === "collected" ? "pending" : "collected";
-      map.closePopup();
-      showToast("Mise à jour...");
-      
-      try {
-        const { error } = await db
-          .from('items')
-          .update({ status: newStatus })
-          .eq('id', id);
-          
-        if (error) throw error;
-
-        const target = allItems.find(i => i.id === id);
-        if (target) target.status = newStatus;
-        renderPins(allItems); 
-        showToast("Statut mis à jour !");
-      } catch (e) { 
-        showToast("Erreur lors de la mise à jour."); 
-      }
-    }
-
-    // --- GESTION PHOTO ET FORMULAIRE ---
-    document.getElementById('photo-input').addEventListener('change', function(e) {
-      selectedFile = e.target.files[0];
-      if (!selectedFile) return;
-
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-          const maxDim = 850;
-          let w = img.width, h = img.height;
-          if (w > h && w > maxDim) { h *= maxDim / w; w = maxDim; }
-          else if (h > maxDim) { w *= maxDim / h; h = maxDim; }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-
-          compressedPhotoBase64 = canvas.toDataURL('image/jpeg', 0.65);
-          document.getElementById('image-preview').src = compressedPhotoBase64;
-          document.getElementById('preview-container').classList.remove('hidden');
-        };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(selectedFile);
-    });
-
-    // --- SUPABASE : AJOUT D'UN OBJET ---
-    async function submitForm(e) {
-      e.preventDefault();
-
-      if (!db) {
-        showToast("Connexion à Supabase impossible. Rechargez la page.");
+    /* ==========================================
+       DELETE
+    ========================================== */
+    async function deleteItem(
+      id,
+      photoUrl
+    ) {
+      if (
+        !confirm(
+          "Supprimer définitivement cet objet ?"
+        )
+      ) {
         return;
       }
-
-      const btn = document.getElementById('submit-btn');
-      btn.disabled = true;
-      btn.innerText = "Envoi de la photo...";
-
+      map.closePopup();
+      showToast(
+        "Suppression en cours…"
+      );
       try {
-        let finalPhotoUrl = "";
-        
-        if (selectedFile) {
-          const fileExt = selectedFile.name.split('.').pop();
-          const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-          
-          const blob = await (await fetch(compressedPhotoBase64)).blob();
-          const uploadFile = new File([blob], fileName, { type: 'image/jpeg' });
-
-          const { data, error } = await db.storage
-            .from('photos')
-            .upload(fileName, uploadFile, {
-              cacheControl: '3600',
-              upsert: false,
-              contentType: 'image/jpeg'
-            });
-
-          if (error) throw error;
-          
-          const { data: publicUrlData } = db.storage
-            .from('photos')
-            .getPublicUrl(fileName);
-            
-          finalPhotoUrl = publicUrlData.publicUrl;
+        if (
+          photoUrl &&
+          photoUrl !== 'null' &&
+          photoUrl !== 'undefined'
+        ) {
+          try {
+            const marker =
+              '/photos/';
+            const idx =
+              photoUrl.indexOf(
+                marker
+              );
+            const fileName =
+              idx >= 0
+                ? decodeURIComponent(
+                    photoUrl
+                      .substring(
+                        idx + marker.length
+                      )
+                      .split('?')[0]
+                  )
+                : null;
+            if (fileName) {
+              await db
+                .storage
+                .from('photos')
+                .remove([
+                  fileName
+                ]);
+            }
+          } catch (errPhoto) {
+            console.warn(
+              "Erreur photo:",
+              errPhoto
+            );
+          }
         }
-
-        btn.innerText = "Enregistrement...";
-
-        const lat = parseFloat(document.getElementById('lat').value);
-        const lng = parseFloat(document.getElementById('lng').value);
-        const desc = document.getElementById('desc-input').value.trim();
-
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-          throw new Error("Position GPS invalide.");
+        const {
+          error
+        } = await db
+          .from('items')
+          .delete()
+          .eq(
+            'id',
+            id
+          );
+        if (error)
+          throw error;
+        allItems =
+          allItems.filter(
+            i =>
+              String(i.id) !==
+              String(id)
+          );
+        renderPins(
+          allItems
+        );
+        document.getElementById(
+          'items-count'
+        ).innerText =
+          `${allItems.length} objet${allItems.length > 1 ? 's' : ''}`;
+        showToast(
+          "Objet supprimé ✓"
+        );
+      } catch (e) {
+        console.error(
+          "Erreur deleteItem:",
+          e
+        );
+        showToast(
+          "Erreur lors de la suppression."
+        );
+      }
+    }
+    /* ==========================================
+       STATUS
+    ========================================== */
+    async function toggleItemStatus(
+      id,
+      currentStatus
+    ) {
+      const newStatus =
+        currentStatus === "collected"
+          ? "pending"
+          : "collected";
+      map.closePopup();
+      showToast(
+        "Mise à jour…"
+      );
+      try {
+        const {
+          error
+        } = await db
+          .from('items')
+          .update({
+            status:
+              newStatus
+          })
+          .eq(
+            'id',
+            id
+          );
+        if (error)
+          throw error;
+        const target =
+          allItems.find(
+            i =>
+              String(i.id) ===
+              String(id)
+          );
+        if (target) {
+          target.status =
+            newStatus;
+        }
+        renderPins(
+          allItems
+        );
+        showToast(
+          newStatus === "collected"
+            ? "Objet marqué comme récupéré ✓"
+            : "Objet remis disponible"
+        );
+      } catch (e) {
+        console.error(
+          "Erreur toggleStatus:",
+          e
+        );
+        showToast(
+          "Erreur lors de la mise à jour."
+        );
+      }
+    }
+    /* ==========================================
+       PHOTO
+    ========================================== */
+    document
+      .getElementById(
+        'photo-input'
+      )
+      .addEventListener(
+        'change',
+        function(e) {
+          selectedFile =
+            e.target.files[0];
+          if (!selectedFile)
+            return;
+          const reader =
+            new FileReader();
+          reader.onload =
+            function(event) {
+              const img =
+                new Image();
+              img.onload =
+                function() {
+                  const maxDim =
+                    1000;
+                  let w =
+                    img.width;
+                  let h =
+                    img.height;
+                  if (
+                    w > h &&
+                    w > maxDim
+                  ) {
+                    h *=
+                      maxDim / w;
+                    w =
+                      maxDim;
+                  } else if (
+                    h > maxDim
+                  ) {
+                    w *=
+                      maxDim / h;
+                    h =
+                      maxDim;
+                  }
+                  const canvas =
+                    document.createElement(
+                      'canvas'
+                    );
+                  canvas.width =
+                    Math.round(w);
+                  canvas.height =
+                    Math.round(h);
+                  const ctx =
+                    canvas.getContext(
+                      '2d'
+                    );
+                  ctx.drawImage(
+                    img,
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height
+                  );
+                  compressedPhotoBase64 =
+                    canvas.toDataURL(
+                      'image/jpeg',
+                      0.68
+                    );
+                  document.getElementById(
+                    'image-preview'
+                  ).src =
+                    compressedPhotoBase64;
+                  document.getElementById(
+                    'preview-container'
+                  ).classList.remove(
+                    'hidden'
+                  );
+                };
+              img.src =
+                event.target.result;
+            };
+          reader.readAsDataURL(
+            selectedFile
+          );
+        }
+      );
+    /* ==========================================
+       SUBMIT
+    ========================================== */
+    async function submitForm(e) {
+      e.preventDefault();
+      if (!db) {
+        showToast(
+          "Connexion à Supabase impossible."
+        );
+        return;
+      }
+      const btn =
+        document.getElementById(
+          'submit-btn'
+        );
+      btn.disabled =
+        true;
+      btn.innerText =
+        "Ajout en cours…";
+      try {
+        let finalPhotoUrl =
+          null;
+        if (
+          selectedFile &&
+          compressedPhotoBase64
+        ) {
+          const fileName =
+            `${Date.now()}_${Math.random()
+              .toString(36)
+              .substring(7)}.jpg`;
+          const blob =
+            await (
+              await fetch(
+                compressedPhotoBase64
+              )
+            ).blob();
+          const uploadFile =
+            new File(
+              [blob],
+              fileName,
+              {
+                type:
+                  'image/jpeg'
+              }
+            );
+          const {
+            error
+          } = await db
+            .storage
+            .from('photos')
+            .upload(
+              fileName,
+              uploadFile,
+              {
+                cacheControl:
+                  '3600',
+                upsert:
+                  false,
+                contentType:
+                  'image/jpeg'
+              }
+            );
+          if (error)
+            throw error;
+          const {
+            data:
+              publicUrlData
+          } =
+            db.storage
+              .from('photos')
+              .getPublicUrl(
+                fileName
+              );
+          finalPhotoUrl =
+            publicUrlData.publicUrl;
+        }
+        const lat =
+          parseFloat(
+            document.getElementById(
+              'lat'
+            ).value
+          );
+        const lng =
+          parseFloat(
+            document.getElementById(
+              'lng'
+            ).value
+          );
+        const desc =
+          document.getElementById(
+            'desc-input'
+          ).value.trim();
+        if (
+          isNaN(lat) ||
+          isNaN(lng)
+        ) {
+          throw new Error(
+            "Position invalide."
+          );
         }
         if (!desc) {
-          throw new Error("La description est obligatoire.");
+          throw new Error(
+            "La description est obligatoire."
+          );
         }
-
-        const { data: insertData, error: insertError } = await db
+        const {
+          error:
+            insertError
+        } = await db
           .from('items')
-          .insert([{
-            lat,
-            lng,
-            desc,
-            photoUrl: finalPhotoUrl,
-            status: 'pending'
-          }]);
-
-        if (insertError) throw insertError;
-
-        showToast("Objet épinglé avec succès !");
+          .insert([
+            {
+              lat,
+              lng,
+              desc,
+              photoUrl:
+                finalPhotoUrl,
+              status:
+                'pending'
+            }
+          ]);
+        if (insertError)
+          throw insertError;
+        showToast(
+          "Trouvaille ajoutée ✓"
+        );
         closeModal();
         fetchPins();
       } catch (err) {
-        console.error(err);
-        showToast("Erreur : " + (err?.message || "enregistrement impossible"));
+        console.error(
+          "Erreur submit:",
+          err
+        );
+        showToast(
+          "Erreur : " +
+          (
+            err?.message ||
+            "enregistrement impossible"
+          )
+        );
       } finally {
-        btn.disabled = false;
-        btn.innerText = "Ajouter sur la carte";
+        btn.disabled =
+          false;
+        btn.innerText =
+          "Ajouter sur la carte";
       }
     }
-
-    // --- OUTIL D'ÉVOLUTION TEMPORELLE ---
+    /* ==========================================
+       TIMELINE
+    ========================================== */
     function toggleTimeline() {
-      const p = document.getElementById('timeline-panel');
-      p.classList.toggle('hidden');
-      if (!p.classList.contains('hidden')) {
-        document.getElementById('timeline-slider').value = 100;
-        onTimelineChange(100);
+      const panel =
+        document.getElementById(
+          'timeline-panel'
+        );
+      panel.classList.toggle(
+        'hidden'
+      );
+      if (
+        !panel.classList.contains(
+          'hidden'
+        )
+      ) {
+        document.getElementById(
+          'timeline-slider'
+        ).value =
+          100;
+        onTimelineChange(
+          100
+        );
       }
     }
-
-    function onTimelineChange(val) {
-      val = Number(val);
-      if (allItems.length === 0) return;
-      const count = Math.ceil((val / 100) * allItems.length);
-      const filtered = allItems.slice(0, count);
-      renderPins(filtered);
-
-      const last = filtered[filtered.length - 1];
-      if (last && val < 100) {
-        const d = new Date(last.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-        document.getElementById('timeline-date-display').innerText = `Jusqu'au ${d}`;
+    function onTimelineChange(
+      val
+    ) {
+      val =
+        Number(val);
+      if (
+        allItems.length === 0
+      ) {
+        return;
+      }
+      const count =
+        Math.ceil(
+          (val / 100) *
+          allItems.length
+        );
+      const filtered =
+        allItems.slice(
+          0,
+          count
+        );
+      renderPins(
+        filtered
+      );
+      const last =
+        filtered[
+          filtered.length - 1
+        ];
+      if (
+        last &&
+        last.created_at &&
+        val < 100
+      ) {
+        const d =
+          new Date(
+            last.created_at
+          ).toLocaleDateString(
+            'fr-FR',
+            {
+              day:
+                'numeric',
+              month:
+                'short',
+              hour:
+                '2-digit',
+              minute:
+                '2-digit'
+            }
+          );
+        document.getElementById(
+          'timeline-date-display'
+        ).innerText =
+          `Jusqu'au ${d}`;
       } else {
-        document.getElementById('timeline-date-display').innerText = "(Tous)";
+        document.getElementById(
+          'timeline-date-display'
+        ).innerText =
+          "Tous les objets";
       }
     }
-
     function togglePlayTimeline() {
-      const btn = document.getElementById('timeline-play-btn');
+      const btn =
+        document.getElementById(
+          'timeline-play-btn'
+        );
       if (playInterval) {
-        clearInterval(playInterval);
-        playInterval = null;
-        btn.innerText = "▶ Lecture";
-      } else {
-        btn.innerText = "⏸ Pause";
-        let slider = document.getElementById('timeline-slider');
-        slider.value = 5;
-        onTimelineChange(5);
-
-        playInterval = setInterval(() => {
-          let curr = parseInt(slider.value) + 5;
-          if (curr > 100) {
-            clearInterval(playInterval);
-            playInterval = null;
-            btn.innerText = "▶ Lecture";
-            slider.value = 100;
-          } else {
-            slider.value = curr;
-          }
-          onTimelineChange(slider.value);
-        }, 500);
+        clearInterval(
+          playInterval
+        );
+        playInterval =
+          null;
+        btn.innerText =
+          "▶ Lecture";
+        return;
       }
+      btn.innerText =
+        "⏸ Pause";
+      const slider =
+        document.getElementById(
+          'timeline-slider'
+        );
+      slider.value =
+        5;
+      onTimelineChange(
+        5
+      );
+      playInterval =
+        setInterval(
+          () => {
+            let curr =
+              parseInt(
+                slider.value
+              ) + 5;
+            if (curr > 100) {
+              clearInterval(
+                playInterval
+              );
+              playInterval =
+                null;
+              btn.innerText =
+                "▶ Lecture";
+              slider.value =
+                100;
+            } else {
+              slider.value =
+                curr;
+            }
+            onTimelineChange(
+              slider.value
+            );
+          },
+          500
+        );
     }
-
-    // --- MODAL HELPERS ---
-    function openModal(lat, lng) {
-      document.getElementById('lat').value = lat;
-      document.getElementById('lng').value = lng;
-      document.getElementById('coords-text').innerText = `Coords : ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      document.getElementById('signal-modal').classList.remove('hidden');
+    /* ==========================================
+       MODAL
+    ========================================== */
+    function openModal(
+      lat,
+      lng
+    ) {
+      document.getElementById(
+        'lat'
+      ).value =
+        lat;
+      document.getElementById(
+        'lng'
+      ).value =
+        lng;
+      document.getElementById(
+        'coords-text'
+      ).innerText =
+        `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      document.getElementById(
+        'signal-modal'
+      ).classList.remove(
+        'hidden'
+      );
     }
-
     function closeModal() {
-      document.getElementById('signal-modal').classList.add('hidden');
-      document.getElementById('signal-form').reset();
-      document.getElementById('preview-container').classList.add('hidden');
-      selectedFile = null;
-      compressedPhotoBase64 = null;
+      document.getElementById(
+        'signal-modal'
+      ).classList.add(
+        'hidden'
+      );
+      document.getElementById(
+        'signal-form'
+      ).reset();
+      document.getElementById(
+        'preview-container'
+      ).classList.add(
+        'hidden'
+      );
+      selectedFile =
+        null;
+      compressedPhotoBase64 =
+        null;
     }
-
-    function showStartupError(message) {
-      let box = document.getElementById('startup-error');
+    /* ==========================================
+       ERRORS
+    ========================================== */
+    function showStartupError(
+      message
+    ) {
+      let box =
+        document.getElementById(
+          'startup-error'
+        );
       if (!box) {
-        box = document.createElement('div');
-        box.id = 'startup-error';
-        box.className = 'fixed inset-x-3 top-20 z-[3000] mx-auto max-w-lg rounded-2xl bg-white p-4 shadow-2xl border border-rose-200 text-sm text-slate-700';
-        document.body.appendChild(box);
+        box =
+          document.createElement(
+            'div'
+          );
+        box.id =
+          'startup-error';
+        box.className =
+          'fixed inset-x-3 top-24 z-[3000] mx-auto max-w-lg rounded-3xl bg-white p-5 shadow-2xl border border-rose-100';
+        document.body.appendChild(
+          box
+        );
       }
-      box.innerHTML = '<div class="font-bold text-rose-600 mb-1">Impossible de charger le site</div>' +
-                      '<div>' + escapeHtml(message) + '</div>' +
-                      '<button onclick="location.reload()" class="mt-3 bg-blue-600 text-white font-bold px-4 py-2 rounded-xl">Recharger</button>';
+      box.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
+            ⚠️
+          </div>
+          <div class="flex-1">
+            <div class="font-bold text-slate-800 text-sm mb-1">
+              Problème de chargement
+            </div>
+            <div class="text-xs text-slate-500">
+              ${escapeHtml(message)}
+            </div>
+          </div>
+        </div>
+        <button
+          onclick="location.reload()"
+          class="mt-4 w-full bg-blue-600 text-white font-bold px-4 py-3 rounded-xl text-xs active:scale-[.98] transition"
+        >
+          Recharger
+        </button>
+      `;
     }
-
-    function showToast(txt) {
-      const t = document.getElementById('toast');
-      t.innerText = txt;
-      t.classList.remove('hidden');
-      setTimeout(() => t.classList.add('hidden'), 3500);
+    /* ==========================================
+       TOAST
+    ========================================== */
+    let toastTimeout;
+    function showToast(
+      txt
+    ) {
+      const t =
+        document.getElementById(
+          'toast'
+        );
+      clearTimeout(
+        toastTimeout
+      );
+      t.innerText =
+        txt;
+      t.classList.remove(
+        'hidden'
+      );
+      toastTimeout =
+        setTimeout(
+          () => {
+            t.classList.add(
+              'hidden'
+            );
+          },
+          3000
+        );
     }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      try {
-        initMap();
-      } catch (err) {
-        console.error("Erreur au démarrage :", err);
-        showStartupError("Une erreur JavaScript empêche la carte de démarrer. Ouvrez la console du navigateur (F12) pour voir le détail.");
+    /* ==========================================
+       TOUCH / ESCAPE
+    ========================================== */
+    document.addEventListener(
+      'keydown',
+      (e) => {
+        if (
+          e.key === 'Escape'
+        ) {
+          closeModal();
+        }
       }
-    });
+    );
+    document
+      .getElementById(
+        'signal-modal'
+      )
+      .addEventListener(
+        'click',
+        (e) => {
+          if (
+            e.target.id ===
+            'signal-modal'
+          ) {
+            closeModal();
+          }
+        }
+      );
+    /* ==========================================
+       START
+    ========================================== */
+    window.addEventListener(
+      'DOMContentLoaded',
+      () => {
+        try {
+          initMap();
+        } catch (err) {
+          console.error(
+            "Erreur au démarrage :",
+            err
+          );
+          showStartupError(
+            "Une erreur inattendue empêche la carte de s'afficher."
+          );
+        }
+      }
+    );
   </script>
 </body>
 </html>
